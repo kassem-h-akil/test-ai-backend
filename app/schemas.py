@@ -12,6 +12,11 @@ class ItemCreate(ItemBase):
     pass
 
 
+class ItemUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+
+
 class ItemRead(ItemBase):
     id: int
     created_date: datetime

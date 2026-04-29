@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..models import Item
-from ..schemas import ItemCreate, ItemRead
+from ..schemas import ItemCreate, ItemRead, ItemUpdate
 
 
 router = APIRouter(prefix="/items", tags=["items"])
@@ -53,3 +53,27 @@ def get_item(item_id: int, db: Session = Depends(get_db)):
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
     return item
+
+
+@router.put("/{item_id}", response_model=ItemRead)
+def update_item(item_id: int, payload: ItemUpdate, db: Session = Depends(get_db)):
+    item = db.get(Item, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    if payload.name is not None:
+        item.name = payload.name
+    if payload.description is not None:
+        item.description = payload.description
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.delete("/{item_id}", status_code=204)
+def delete_item(item_id: int, db: Session = Depends(get_db)):
+    item = db.get(Item, item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    db.delete(item)
+    db.commit()
+    return None
