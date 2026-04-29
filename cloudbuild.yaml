@@ -1,0 +1,71 @@
+# Cloud Build pipeline for the TestAI backend (FastAPI) on Cloud Run.
+#
+# Required one-time setup in your GCP project:
+#   1. Enable APIs: run.googleapis.com, cloudbuild.googleapis.com,
+#      artifactregistry.googleapis.com, sqladmin.googleapis.com,
+#      secretmanager.googleapis.com.
+#   2. Create an Artifact Registry repo (matches _AR_REPO below):
+#        gcloud artifacts repositories create testai \
+#          --repository-format=docker --location=us-central1
+#   3. Create a Cloud SQL (MySQL) instance + database + user, then put the
+#      DB password in Secret Manager as `testai-db-password`:
+#        gcloud secrets create testai-db-password --data-file=-
+#   4. Grant the Cloud Build service account the roles:
+#        run.admin, iam.serviceAccountUser, cloudsql.client,
+#        artifactregistry.writer, secretmanager.secretAccessor
+#
+# Override substitutions per environment, e.g.:
+#   gcloud builds submit --config cloudbuild.yaml \
+#     --substitutions=_CLOUDSQL_INSTANCE=my-proj:us-central1:testai-db,\
+# _CORS_ORIGINS=https://testai-frontend-xxxx-uc.a.run.app
+
+substitutions:
+  _SERVICE_NAME: testai-backend
+  _REGION: us-central1
+  _AR_REPO: testai
+  _CLOUDSQL_INSTANCE: ''         # PROJECT:REGION:INSTANCE
+  _DB_NAME: testai
+  _DB_USER: app
+  _DB_PASSWORD_SECRET: testai-db-password
+  _CORS_ORIGINS: '*'
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE_NAME}:$COMMIT_SHA
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE_NAME}:latest
+      - .
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - --all-tags
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE_NAME}
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE_NAME}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE_NAME}:$COMMIT_SHA
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --port=8080
+      - --add-cloudsql-instances=${_CLOUDSQL_INSTANCE}
+      - --set-env-vars=DB_NAME=${_DB_NAME},DB_USER=${_DB_USER},CLOUDSQL_INSTANCE=${_CLOUDSQL_INSTANCE},CORS_ORIGINS=${_CORS_ORIGINS}
+      - --set-secrets=DB_PASSWORD=${_DB_PASSWORD_SECRET}:latest
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE_NAME}:$COMMIT_SHA
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/${_SERVICE_NAME}:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY

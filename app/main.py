@@ -19,7 +19,7 @@ def create_app() -> FastAPI:
 
     Base.metadata.create_all(bind=engine)
 
-    app.include_router(items.router)
+    app.include_router(items.router, prefix="/api")
 
     @app.get("/health", tags=["meta"])
     def health():

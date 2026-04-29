@@ -7,12 +7,19 @@ class Settings(BaseSettings):
     db_user: str = "root"
     db_password: str = "root"
     db_name: str = "testai"
+    cloudsql_instance: str = ""
     cors_origins: str = "http://localhost:5173"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     @property
     def database_url(self) -> str:
+        if self.cloudsql_instance:
+            return (
+                f"mysql+pymysql://{self.db_user}:{self.db_password}@/"
+                f"{self.db_name}?unix_socket=/cloudsql/{self.cloudsql_instance}"
+                f"&charset=utf8mb4"
+            )
         return (
             f"mysql+pymysql://{self.db_user}:{self.db_password}"
             f"@{self.db_host}:{self.db_port}/{self.db_name}?charset=utf8mb4"
