@@ -23,7 +23,7 @@ substitutions:
   _SERVICE_NAME: testai-backend
   _REGION: us-central1
   _AR_REPO: testai
-  _CLOUDSQL_INSTANCE: ''         # PROJECT:REGION:INSTANCE
+  _CLOUDSQL_INSTANCE: 'numfluencer:us-central1:testai-db'         # PROJECT:REGION:INSTANCE
   _DB_NAME: testai
   _DB_USER: app
   _DB_PASSWORD_SECRET: testai-db-password
